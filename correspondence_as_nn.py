@@ -103,7 +103,7 @@ if __name__ == '__main__':
     t0 = time()
     index = AnnoyIndex(dissimilarity_matrix_A.shape[1], metric='euclidean')
     for i, v in enumerate(dissimilarity_matrix_A):
-        index.add_item(i, v.tolist())
+        index.add_item(i, v)
 
     index.build(n_trees=n_trees)
     print("%s sec." % (time() - t0))
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     t0 = time()
     correspondence_annoy = np.zeros(dissimilarity_matrix_A.shape[0])
     for i, v in enumerate(dissimilarity_matrix_B):
-        correspondence_annoy[i] = index.get_nns_by_vector(v.tolist(), 1)[0]
+        correspondence_annoy[i] = index.get_nns_by_vector(v, 1)[0]
 
     print("%s sec." % (time() - t0))
     print("Annoy accuracy: %s" % np.mean(correspondence_annoy[:some] == correspondence_kdtree))
