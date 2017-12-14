@@ -128,6 +128,6 @@ if __name__ == '__main__':
 
     print("Querying the (approximate) nearest neighbor of each (approximate) streamline of B")
     t0 = time()
-    correspondence_nmslib = index.knnQueryBatch(dissimilarity_matrix_A[:some], k=1, num_threads=4)
+    correspondence_nmslib = index_nmslib.knnQueryBatch(dissimilarity_matrix_A, k=1, num_threads=4)
     print("%s sec." % (time() - t0))
     print("Annoy accuracy: %s" % np.mean(correspondence_nmslib[:some] == correspondence_kdtree))
