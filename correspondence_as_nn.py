@@ -1,11 +1,23 @@
 import numpy as np
+from time import time
 import nibabel as nib
 from dissimilarity.dissimilarity import compute_dissimilarity, dissimilarity
 import joblib
-from annoy import AnnoyIndex
-from time import time
 from scipy.spatial import cKDTree
-import nmslib
+
+try:
+    import annoy
+    has_annoy = True
+except ImportError:
+    has_annoy = False
+    print("spotify/annoy not available!")
+
+try:
+    import nmslib
+    has_nmslib = True
+except ImportError:
+    has_nmslib = False
+    print("nmslib not available!")
 
 
 if __name__ == '__main__':
@@ -18,6 +30,13 @@ if __name__ == '__main__':
 
     filename_A_dissimilarity = filename_A[:-3] + 'dissimilarity'
     filename_B_dissimilarity = filename_B[:-3] + 'dissimilarity'
+
+    use_kdtree = True
+    use_annoy = True
+    use_nmslib = True
+
+    limit_kdtree_queries = 10000
+
 
     print("Attempting to retrieve %s" % filename_A_dissimilarity)
     try:
@@ -85,49 +104,53 @@ if __name__ == '__main__':
 
 
 
-    print("Building KDTree of the (approximate) streamlines of A.")
-    t0 = time()
-    kdt = cKDTree(dissimilarity_matrix_A)
-    print("%s sec." % (time() - t0))
+    if use_kdtree:
+        print("Building KDTree of the (approximate) streamlines of A.")
+        t0 = time()
+        kdt = cKDTree(dissimilarity_matrix_A)
+        print("%s sec." % (time() - t0))
 
-    print("Computing the (exact) nearest neighbor for some (approximate) streamlines of B with spotify/annoy")
-    some = 10000
-    t0 = time()
-    distances_kdtree, correspondence_kdtree = kdt.query(dissimilarity_matrix_B[:some])
-    print("%s sec." % (time() - t0))
+        print("Computing the (exact) nearest neighbor for some (approximate) streamlines of B with scipy.cKDTree")
+        t0 = time()
+        distances_kdtree, correspondence_kdtree = kdt.query(dissimilarity_matrix_B[:limit_kdtree_queries])
+        print("%s sec." % (time() - t0))
         
 
-    print("Computing the (approximate) nearest neighbor for each (approximate) streamline of B")
-    print("Building Annoy index for large-scale (approximate) nearest neighbor.")
-    n_trees = 10
-    t0 = time()
-    index = AnnoyIndex(dissimilarity_matrix_A.shape[1], metric='euclidean')
-    for i, v in enumerate(dissimilarity_matrix_A):
-        index.add_item(i, v)
+    if use_annoy and has_annoy:
+        print("Computing the (approximate) nearest neighbor for each (approximate) streamline of B")
+        print("Building Annoy index for large-scale (approximate) nearest neighbor.")
+        n_trees = 10
+        t0 = time()
+        index = annoy.AnnoyIndex(dissimilarity_matrix_A.shape[1], metric='euclidean')
+        for i, v in enumerate(dissimilarity_matrix_A):
+            index.add_item(i, v)
 
-    index.build(n_trees=n_trees)
-    print("%s sec." % (time() - t0))
+        index.build(n_trees=n_trees)
+        print("%s sec." % (time() - t0))
 
-    print("Querying the (approximate) nearest neighbor of each (approximate) streamline of B")
-    t0 = time()
-    correspondence_annoy = np.zeros(dissimilarity_matrix_A.shape[0])
-    for i, v in enumerate(dissimilarity_matrix_B):
-        correspondence_annoy[i] = index.get_nns_by_vector(v, 1)[0]
+        print("Querying the (approximate) nearest neighbor of each (approximate) streamline of B")
+        t0 = time()
+        correspondence_annoy = np.zeros(dissimilarity_matrix_A.shape[0])
+        for i, v in enumerate(dissimilarity_matrix_B):
+            correspondence_annoy[i] = index.get_nns_by_vector(v, 1)[0]
 
-    print("%s sec." % (time() - t0))
-    print("Annoy accuracy: %s" % np.mean(correspondence_annoy[:some] == correspondence_kdtree))
+        if use_kdtree:
+            print("%s sec." % (time() - t0))
+            print("Annoy accuracy: %s" % np.mean(correspondence_annoy[:limit_kdtree_queries] == correspondence_kdtree))
 
 
-    print("Computing the (approximate) nearest neighbor for each (approximate) streamline of B with nmslib")
-    print("Building nmslib index for large-scale (approximate) nearest neighbor.")
-    t0 = time()
-    index_nmslib = nmslib.init(method='hnsw', space='l2')
-    index_nmslib.addDataPointBatch(dissimilarity_matrix_A)
-    index_nmslib.createIndex({'post': 2}, print_progress=True)
-    print("%s sec." % (time() - t0))
+    if use_nmslib:
+        print("Computing the (approximate) nearest neighbor for each (approximate) streamline of B with nmslib")
+        print("Building nmslib index for large-scale (approximate) nearest neighbor.")
+        t0 = time()
+        index_nmslib = nmslib.init(method='hnsw', space='l2')
+        index_nmslib.addDataPointBatch(dissimilarity_matrix_A)
+        index_nmslib.createIndex({'post': 2}, print_progress=True)
+        print("%s sec." % (time() - t0))
 
-    print("Querying the (approximate) nearest neighbor of each (approximate) streamline of B")
-    t0 = time()
-    correspondence_nmslib = index_nmslib.knnQueryBatch(dissimilarity_matrix_A, k=1, num_threads=4)
-    print("%s sec." % (time() - t0))
-    print("Annoy accuracy: %s" % np.mean(correspondence_nmslib[:some] == correspondence_kdtree))
+        print("Querying the (approximate) nearest neighbor of each (approximate) streamline of B")
+        t0 = time()
+        correspondence_nmslib = index_nmslib.knnQueryBatch(dissimilarity_matrix_A, k=1, num_threads=4)
+        if use_kdtree:
+            print("%s sec." % (time() - t0))
+            print("Annoy accuracy: %s" % np.mean(correspondence_nmslib[:limit_kdtree_queries] == correspondence_kdtree))
