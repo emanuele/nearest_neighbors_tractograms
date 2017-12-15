@@ -59,6 +59,7 @@ if __name__ == '__main__':
         dissimilarity_matrix_A, prototype_idx_A = compute_dissimilarity(streamlines_A,
                                                                     n_jobs=1,
                                                                     verbose=True)
+        prototype_A = streamlines_A[prototype_idx_A]
         print("%s sec." % (time() - t0))
         if memoize:
             print("Saving %s" % filename_A_dissimilarity)
@@ -110,7 +111,7 @@ if __name__ == '__main__':
         kdt = cKDTree(dissimilarity_matrix_A)
         print("%s sec." % (time() - t0))
 
-        print("Computing the (exact) nearest neighbor for some (approximate) streamlines of B with scipy.cKDTree")
+        print("Computing the (exact) nearest neighbor for %s (approximate) streamlines of B with scipy.cKDTree" % limit_kdtree_queries)
         t0 = time()
         distances_kdtree, correspondence_kdtree = kdt.query(dissimilarity_matrix_B[:limit_kdtree_queries])
         print("%s sec." % (time() - t0))
@@ -150,7 +151,8 @@ if __name__ == '__main__':
 
         print("Querying the (approximate) nearest neighbor of each (approximate) streamline of B")
         t0 = time()
-        correspondence_nmslib = index_nmslib.knnQueryBatch(dissimilarity_matrix_A, k=1, num_threads=4)
+        correspondence_nmslib = index_nmslib.knnQueryBatch(dissimilarity_matrix_B, k=1, num_threads=4)
+        correspondence_nmslib = np.array([i[0][0] for i in correspondence_nmslib])
         if use_kdtree:
             print("%s sec." % (time() - t0))
             print("Annoy accuracy: %s" % np.mean(correspondence_nmslib[:limit_kdtree_queries] == correspondence_kdtree))
