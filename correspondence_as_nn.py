@@ -140,7 +140,7 @@ if __name__ == '__main__':
             print("Annoy accuracy: %s" % np.mean(correspondence_annoy[:limit_kdtree_queries] == correspondence_kdtree))
 
 
-    if use_nmslib:
+    if use_nmslib and has_nmslib:
         print("Computing the (approximate) nearest neighbor for each (approximate) streamline of B with nmslib")
         print("Building nmslib index for large-scale (approximate) nearest neighbor.")
         t0 = time()
