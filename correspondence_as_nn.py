@@ -120,7 +120,8 @@ if __name__ == '__main__':
     if use_annoy and has_annoy:
         print("Computing the (approximate) nearest neighbor for each (approximate) streamline of B")
         print("Building Annoy index for large-scale (approximate) nearest neighbor.")
-        n_trees = 10
+        n_trees = 30
+        search_k = 60
         t0 = time()
         index = annoy.AnnoyIndex(dissimilarity_matrix_A.shape[1], metric='euclidean')
         for i, v in enumerate(dissimilarity_matrix_A):
@@ -133,7 +134,7 @@ if __name__ == '__main__':
         t0 = time()
         correspondence_annoy = np.zeros(dissimilarity_matrix_A.shape[0])
         for i, v in enumerate(dissimilarity_matrix_B):
-            correspondence_annoy[i] = index.get_nns_by_vector(v, 1)[0]
+            correspondence_annoy[i] = index.get_nns_by_vector(v, 1, search_k=search_k)[0]
 
         if use_kdtree:
             print("%s sec." % (time() - t0))
